@@ -25,30 +25,36 @@ import com.badlogic.gdx.graphics.g2d.TextureAtlas.AtlasRegion;
 import java.util.HashMap;
 import java.util.Random;
 
+import static java.lang.Math.round;
+
 public class PhysicsGame extends ApplicationAdapter {
-	static final float STEP_TIME = 1f / 60f;
-	static final int VELOCITY_ITERATIONS = 6;
-	static final int POSITION_ITERATIONS = 2;
-	static final float SCALE = 0.05f;
+	private static final float STEP_TIME = 1f / 60f;
+	private static final int VELOCITY_ITERATIONS = 6;
+	private static final int POSITION_ITERATIONS = 2;
+	private static final float SCALE = 0.05f;
 
-	TextureAtlas       textureAtlas;
-	SpriteBatch        batch;
-	final HashMap<String, Sprite> sprites = new HashMap<String, Sprite>();
+	private TextureAtlas       textureAtlas;
+	private SpriteBatch        batch;
+	private final HashMap<String, Sprite> sprites = new HashMap<>();
 
-	OrthographicCamera camera;
-	ExtendViewport     viewport;
+	private OrthographicCamera camera;
+	private ExtendViewport     viewport;
 
-	World              world;
-	Box2DDebugRenderer debugRenderer;
-	PhysicsShapeCache  physicsBodies;
-	Body               banana;
-	float              accumulator = 0;
-	Body ground;
+	private World              world;
+	private Box2DDebugRenderer debugRenderer;
+	private PhysicsShapeCache  physicsBodies;
 
+	private float              accumulator = 0;
 
-	static final int COUNT = 10;
-	Body[] fruitBodies = new Body[COUNT];
-	String[] names = new String[COUNT];
+	// private Body banana;
+	private Body ground;
+	private Body paredIzq;
+	private Body paredDer;
+	private Body techo;
+
+	private static final int COUNT = 20;
+	private Body[] fruitBodies = new Body[COUNT];
+	private String[] names = new String[COUNT];
 
 	@Override
 	public void create() {
@@ -67,36 +73,32 @@ public class PhysicsGame extends ApplicationAdapter {
 
 		debugRenderer = new Box2DDebugRenderer();
 
-		banana = createBody("banana", 10, 50, 0);
+		//banana = createBody("banana", 10, 50, 0);
 		generateFruit();
 	}
 
 
 	private void generateFruit() {
-		String[] fruitNames = new String[]{"banana", "cherries", "orange"};
+		String[] fruitNames = new String[]{"banana", "cherries", "orange","crate"};
 
 		Random random = new Random();
 
 		for (int i = 0; i < fruitBodies.length; i++) {
 			String name = fruitNames[random.nextInt(fruitNames.length)];
 
-			float x = random.nextFloat() * 50;
-			float y = random.nextFloat() * 50 + 50;
+			//float x = random.nextFloat() * 50;
+			//float y = random.nextFloat() * 50 + 50;
+			float x = i*4;
+			float y = 45;
 
 			names[i] = name;
 			fruitBodies[i] = createBody(name, x, y, 0);
 		}
 	}
 
-	private void drawSprite(String name, float x, float y, float degrees) {
-		Sprite sprite = sprites.get(name);
-		sprite.setPosition(x, y);
-		sprite.setRotation(degrees);
-		sprite.setOrigin(0f,0f);
-		sprite.draw(batch);
-	}
-
 	private void createGround() {
+
+		// Suelo
 		if (ground != null) world.destroyBody(ground);
 
 		BodyDef bodyDef = new BodyDef();
@@ -112,9 +114,51 @@ public class PhysicsGame extends ApplicationAdapter {
 
 		ground = world.createBody(bodyDef);
 		ground.createFixture(fixtureDef);
-		ground.setTransform(0, 0, 0);
+		ground.setTransform(0, -1, 0);
 
 		shape.dispose();
+
+		// Techo
+		if (techo != null) world.destroyBody(techo);
+
+		techo = world.createBody(bodyDef);
+		techo.createFixture(fixtureDef);
+		techo.setTransform(0, 51, 0);
+
+		// Paredes
+		if (paredIzq != null) world.destroyBody(paredIzq);
+		if (paredDer != null) world.destroyBody(paredDer);
+
+		BodyDef bodyDefIzq = new BodyDef();
+		BodyDef bodyDefDer = new BodyDef();
+		bodyDefIzq.type = BodyDef.BodyType.StaticBody;
+		bodyDefDer.type = BodyDef.BodyType.StaticBody;
+
+
+		FixtureDef fixtureDefIzq = new FixtureDef();
+		FixtureDef fixtureDefDer = new FixtureDef();
+		fixtureDefIzq.friction = 1;
+		fixtureDefDer.friction = 1;
+
+		PolygonShape shapeIzq = new PolygonShape();
+		shapeIzq.setAsBox(1, camera.viewportHeight);
+		PolygonShape shapeDer = new PolygonShape();
+		shapeDer.setAsBox(1, camera.viewportHeight);
+
+		fixtureDefDer.shape = shapeDer;
+		fixtureDefIzq.shape = shapeIzq;
+
+		paredIzq = world.createBody(bodyDefIzq);
+		paredIzq.createFixture(fixtureDefIzq);
+		paredIzq.setTransform(-1, 0, 0);
+
+		paredDer = world.createBody(bodyDefDer);
+		paredDer.createFixture(fixtureDefDer);
+		paredDer.setTransform(camera.viewportWidth+1, 0, 0);
+
+		shapeIzq.dispose();
+		shapeDer.dispose();
+
 	}
 
 	private Body createBody(String name, float x, float y, float rotation) {
@@ -177,6 +221,12 @@ public class PhysicsGame extends ApplicationAdapter {
 			drawSprite(name, position.x, position.y, degrees);
 		}
 
+		// Pruebaas
+		int hg=round( Gdx.input.getAccelerometerY());
+		int vg=round( Gdx.input.getAccelerometerX());
+		System.out.println("Gravedad Horizontal : "+hg+" Gravedad Vertical: "+vg);
+		world.setGravity(new Vector2(hg*15,-vg*15));
+
 		batch.end();
 
 		debugRenderer.render(world, camera.combined);
@@ -186,6 +236,14 @@ public class PhysicsGame extends ApplicationAdapter {
 	private void drawSprite(String name, float x, float y) {
 		Sprite sprite = sprites.get(name);
 		sprite.setPosition(x, y);
+		sprite.draw(batch);
+	}
+
+	private void drawSprite(String name, float x, float y, float degrees) {
+		Sprite sprite = sprites.get(name);
+		sprite.setPosition(x, y);
+		sprite.setRotation(degrees);
+		sprite.setOrigin(0f,0f);
 		sprite.draw(batch);
 	}
 
